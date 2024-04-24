@@ -44,6 +44,95 @@ HuffmanNode* buildHuffmanTree(const map<unsigned char, double>& probabilities) {
     return root;
 }
 
+
+
+vector<LengthTable> buildLengthTable(map<unsigned char, double> &probabilities) {
+    //sort map by value
+    vector<pair<unsigned char, double>> probability_vec(probabilities.begin(), probabilities.end());
+    auto cmp = [](const pair<unsigned char, double>& a, const pair<unsigned char, double>& b) {
+        return a.second < b.second; };
+    sort(probability_vec.begin(), probability_vec.end(), cmp);   
+    
+    // phase 1
+    // initial
+    vector<LengthTable> huff_len_tables;
+    for (auto &pair: probability_vec){
+        LengthTable huff_len_table;
+        huff_len_table.value = pair.first;
+        huff_len_table.work_array = pair.second;
+        huff_len_table.type = 0; 
+        huff_len_tables.push_back(huff_len_table);
+    }
+    // type 0 to type 1
+    int last_data_id = 0;
+    for (int i = 0; i < probabilities.size(); i+=2) {
+        if (i == probabilities.size() - 1) {
+            huff_len_tables[i / 2].work_array = huff_len_tables[i].work_array + huff_len_tables[0].work_array;
+            huff_len_tables[0].type = -1; //empty
+        }
+        else {
+            huff_len_tables[i / 2].work_array = huff_len_tables[i].work_array + huff_len_tables[i + 1].work_array;
+        }
+        huff_len_tables[i / 2].type = 1;
+        last_data_id = i / 2;
+    }
+
+    // type 1 to type 2
+    if (huff_len_tables[0].type == -1) {
+        huff_len_tables[0].work_array = last_data_id;
+        huff_len_tables[0].type = 2;
+        last_data_id++;
+    }
+    for (int i = 0; i < probabilities.size(); i += 2) {
+        // combine 2 nodes
+        if (huff_len_tables[i].type == 1 && huff_len_tables[i+1].type == 0) {
+            // root
+            huff_len_tables[last_data_id].work_array = 0;
+            huff_len_tables[last_data_id].type = 3;
+            break;
+        }
+        huff_len_tables[last_data_id+1].work_array = huff_len_tables[i].work_array + huff_len_tables[i + 1].work_array;
+        huff_len_tables[last_data_id+1].type = 1;
+        // save parent pos
+        huff_len_tables[i].work_array = last_data_id+1;
+        huff_len_tables[i].type = 2;
+        huff_len_tables[i + 1].work_array = last_data_id+1;
+        huff_len_tables[i + 1].type = 2;
+        last_data_id++;
+    }
+    // type 2 to type 3
+    // depth = parent depth + 1
+    for (int i = last_data_id - 1; i >= 0; i--) {
+        int parent_pos = huff_len_tables[i].work_array;
+        huff_len_tables[i].work_array = huff_len_tables[parent_pos].work_array + 1;
+        huff_len_tables[i].type = 3;
+    }
+    // type 3 to type 4
+    // only root
+    if (last_data_id - 1 < 0) {
+        huff_len_tables[0].work_array = 1;
+        huff_len_tables[1].work_array = 1;
+        huff_len_tables[0].type = 4;
+        huff_len_tables[1].type = 4;
+    }
+    for (int i = last_data_id - 1, last_empty_id=last_data_id+1; i >= 0; i--) {
+        int depth = huff_len_tables[i].work_array;
+        huff_len_tables[i + 1].work_array = depth + 1;//填下個位置
+        huff_len_tables[i + 1].type = 4;
+        if (last_empty_id < probabilities.size()) {
+            huff_len_tables[last_empty_id].work_array = depth + 1;//填空位
+            huff_len_tables[last_empty_id].type = 4;
+        }
+        //填自己位
+        else if (i == 0) {
+            huff_len_tables[i].work_array = depth + 1;
+            huff_len_tables[i].type = 4;
+        } 
+    }
+    return huff_len_tables;
+}
+
+
 // 从 Huffman 树构建 Huffman 表
 void buildHuffmanTable(HuffmanNode* root, vector<bool>& code, map<unsigned char, vector<bool>>& huffmanTable) {
     if (root == nullptr) return;
@@ -71,19 +160,34 @@ void buildHuffmanTable(HuffmanNode* root, vector<bool>& code, map<unsigned char,
     }
 }
 
+map<unsigned char, vector<bool>> lengthTable2HuffmanTable(vector<LengthTable> lengthTable) {
+    map<unsigned char, vector<bool>> huffmanTable;
+    // type 3 to type 4
+    /*for (int i = 0; i<256; i++) {
+        int depth = lengthTable[i]->work_array;
+        lengthTable[i]->work_array = depth + 1;
+        huff_len_table[last_data_id]->work_array = depth + 1;
+        huff_len_table[last_data_id + 1]->work_array = depth + 1;
+        last_data_id = i;
+        if (i == 0) {
+            huff_len_table[i]->work_array = depth + 1;
+        }
+    }*/
+    return huffmanTable;
+}
+
 
 string encode(vector<unsigned char> original_img, map<unsigned char, double> probability_map, string img_name, string process_type, bool is_dpcm) {
     // 构建 Huffman 树
     HuffmanNode* root = buildHuffmanTree(probability_map);
-    //cout << root->left->probability << endl;
-    //cout << root->right->probability << endl;
-    //cout << root->left->left->probability << endl;
+    //vector<LengthTable> lengthTable = buildLengthTable(probability_map);
 
     // 构建 Huffman 表
     vector<bool> code;
     map<unsigned char, vector<bool>> huffmanTable;
     buildHuffmanTable(root, code, huffmanTable);
     //print_huffmanTable(huffmanTable);
+    //map<unsigned char, vector<bool>> huffmanTable = lengthTable2HuffmanTable(lengthTable);
 
     string bitstring = huff_encode(original_img, huffmanTable);
 

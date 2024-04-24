@@ -101,9 +101,9 @@ int main() {
     cout << "lena: 1" << endl;
     cout << "baboon: 2" << endl;
     cout << "Please choose the image: ";
-    cin >> choice;
+    //cin >> choice;
     cout << endl;
-    //choice = 1;
+    choice = 1;
 
     if (choice == 1) {
         img_name = "lena";
@@ -120,9 +120,9 @@ int main() {
     cout << "halftone: 2" << endl;
     cout << "binary: 3" << endl;
     cout << "Please choose the color type: ";
-    cin >> choice;
+    //cin >> choice;
     cout << endl;
-    //choice = 1;
+    choice = 1;
 
     if (choice == 1) {
         process_type = "";
